@@ -582,6 +582,9 @@ ST_FUNC const char *get_tok_str(int v, CValue *cv)
     return cstr_buf.data;
 }
 
+#define read	__tcc_hook.read
+#define lseek	__tcc_hook.lseek
+
 /* return the current character, handling end of block if necessary
    (but not stray) */
 ST_FUNC int handle_eob(void)
@@ -615,6 +618,9 @@ ST_FUNC int handle_eob(void)
         return CH_EOF;
     }
 }
+
+#undef read
+#undef lseek
 
 /* read next char from current input file and handle end of input buffer */
 ST_INLN void inp(void)

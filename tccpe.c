@@ -1503,11 +1503,17 @@ static int add_dllref(TCCState *s1, const char *dllname)
 
 /* ------------------------------------------------------------- */
 
+#define read	__tcc_hook.read
+#define lseek	__tcc_hook.lseek
+
 static int read_mem(int fd, unsigned offset, void *buffer, unsigned len)
 {
     lseek(fd, offset, SEEK_SET);
     return len == read(fd, buffer, len);
 }
+
+#undef read
+#undef lseek
 
 /* ------------------------------------------------------------- */
 
