@@ -288,6 +288,8 @@ extern long double strtold (const char *__nptr, char **__endptr);
 #include "elf.h"
 #include "stab.h"
 
+extern TCCHook __tcc_hook;
+
 /* -------------------------------------------- */
 
 #ifndef PUB_FUNC /* functions used by tcc.c but not in libtcc.h */

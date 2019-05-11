@@ -858,11 +858,11 @@ Section *FindSection(TCCState * s1, const char *sname)
     return 0;
 }
 
+#define read	__tcc_hook.read
+#define lseek	__tcc_hook.lseek
+
 ST_FUNC int tcc_load_coff(TCCState * s1, int fd)
 {
-// tktk TokenSym *ts;
-
-    FILE *f;
     unsigned int str_size;
     char *Coff_str_table, *name;
     int i, k;
@@ -870,40 +870,35 @@ ST_FUNC int tcc_load_coff(TCCState * s1, int fd)
     char name2[9];
     FILHDR file_hdr;		/* FILE HEADER STRUCTURE              */
 
-    f = fdopen(fd, "rb");
-    if (!f) {
-	tcc_error("Unable to open .out file for input");
-    }
-
-    if (fread(&file_hdr, FILHSZ, 1, f) != 1)
+    if (read(fd, &file_hdr, FILHSZ) != FILHSZ)
 	tcc_error("error reading .out file for input");
 
-    if (fread(&o_filehdr, sizeof(o_filehdr), 1, f) != 1)
+    if (read(fd, &o_filehdr, sizeof(o_filehdr)) != sizeof(o_filehdr))
 	tcc_error("error reading .out file for input");
 
     // first read the string table
 
-    if (fseek(f, file_hdr.f_symptr + file_hdr.f_nsyms * SYMESZ, SEEK_SET))
+    if (lseek(fd, file_hdr.f_symptr + file_hdr.f_nsyms * SYMESZ, SEEK_SET))
 	tcc_error("error reading .out file for input");
 
-    if (fread(&str_size, sizeof(int), 1, f) != 1)
+    if (read(fd, &str_size, sizeof(int)) != sizeof(int))
 	tcc_error("error reading .out file for input");
 
 
     Coff_str_table = (char *) tcc_malloc(str_size);
 
-    if (fread(Coff_str_table, str_size - 4, 1, f) != 1)
+    if (read(fd, Coff_str_table, str_size - 4) != (str_size - 4))
 	tcc_error("error reading .out file for input");
 
     // read/process all the symbols
 
     // seek back to symbols
 
-    if (fseek(f, file_hdr.f_symptr, SEEK_SET))
+    if (lseek(fd, file_hdr.f_symptr, SEEK_SET))
 	tcc_error("error reading .out file for input");
 
     for (i = 0; i < file_hdr.f_nsyms; i++) {
-	if (fread(&csym, SYMESZ, 1, f) != 1)
+	if (read(fd, &csym, SYMESZ) != SYMESZ)
 	    tcc_error("error reading .out file for input");
 
 	if (csym._n._n_n._n_zeroes == 0) {
@@ -938,7 +933,7 @@ ST_FUNC int tcc_load_coff(TCCState * s1, int fd)
 	// skip any aux records
 
 	if (csym.n_numaux == 1) {
-	    if (fread(&csym, SYMESZ, 1, f) != 1)
+	    if (read(fd, &csym, SYMESZ) != SYMESZ)
 		tcc_error("error reading .out file for input");
 	    i++;
 	}
@@ -946,3 +941,6 @@ ST_FUNC int tcc_load_coff(TCCState * s1, int fd)
 
     return 0;
 }
+
+#undef read
+#undef lseek

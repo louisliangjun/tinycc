@@ -2246,6 +2246,9 @@ LIBTCCAPI int tcc_output_file(TCCState *s, const char *filename)
     return ret;
 }
 
+#define read	__tcc_hook.read
+#define lseek	__tcc_hook.lseek
+
 ssize_t full_read(int fd, void *buf, size_t count) {
     char *cbuf = buf;
     size_t rnum = 0;
@@ -2710,6 +2713,9 @@ ST_FUNC int tcc_load_archive(TCCState *s1, int fd, int alacarte)
     }
     return 0;
 }
+
+#undef lseek
+#undef read
 
 #ifndef TCC_TARGET_PE
 /* load a DLL and all referenced DLLs. 'level = 0' means that the DLL

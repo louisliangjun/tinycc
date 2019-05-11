@@ -13,6 +13,15 @@ struct TCCState;
 
 typedef struct TCCState TCCState;
 
+typedef struct TCCHook {
+    int  (*open)(const char* filename, int flag);
+    void (*close)(int fd);
+    long (*lseek)(int fd, long offset, int origin);
+	int  (*read)(int fd, void *buf, unsigned int len);
+} TCCHook;
+
+LIBTCCAPI void tcc_setup_hook(const TCCHook *hook);
+
 /* create a new TCC compilation context */
 LIBTCCAPI TCCState *tcc_new(void);
 

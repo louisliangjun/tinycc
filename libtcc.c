@@ -20,6 +20,10 @@
 
 #include "tcc.h"
 
+static int _open_wrap(const char* filename, int flag) { return open(filename, flag); }
+TCCHook __tcc_hook = { _open_wrap, close, lseek, read };
+void tcc_setup_hook(const TCCHook *hook) { __tcc_hook = *hook; }
+
 /********************************************************/
 /* global variables */
 
@@ -567,6 +571,11 @@ PUB_FUNC void tcc_warning(const char *fmt, ...)
 
 /********************************************************/
 /* I/O layer */
+
+#define open	__tcc_hook.open
+#define close	__tcc_hook.close
+#define lseek	__tcc_hook.lseek
+#define read	__tcc_hook.read
 
 ST_FUNC void tcc_open_bf(TCCState *s1, const char *filename, int initlen)
 {
@@ -2047,3 +2056,8 @@ PUB_FUNC void tcc_print_stats(TCCState *s, unsigned total_time)
     fprintf(stderr, "* %d bytes memory used\n", mem_max_size);
 #endif
 }
+
+#undef open
+#undef close
+#undef lseek
+#undef read
