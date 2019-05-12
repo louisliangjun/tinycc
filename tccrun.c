@@ -839,20 +839,158 @@ ST_FUNC void *dlsym(void *handle, const char *symbol)
 #endif /* TCC_IS_NATIVE */
 /* ------------------------------------------------------------- */
 
-void tcc_debug_rt_error(TCCState *s, void *rt_main, int max_level, void* uc) {
-	Section *old_symtab_section = symtab_section;
-	Section *old_stab_section = stab_section;
-	Section *old_stabstr_section = stabstr_section;
+static addr_t rt_trace(TCCState *s, addr_t wanted_pc, const char *msg, void (*trace)(const char* msg))
+{
+    char func_name[128], last_func_name[128], tmp_buf[128];
+    addr_t func_addr, last_pc, pc;
+    const char *incl_files[INCLUDE_STACK_SIZE];
+    int incl_index, len, last_line_num, i;
+    const char *str, *p;
+
+    Stab_Sym *stab_sym = NULL, *stab_sym_end, *sym;
+    int stab_len = 0;
+    char *stab_str = NULL;
+
+    if (s->stab_section) {
+        stab_len = s->stab_section->data_offset;
+        stab_sym = (Stab_Sym *)s->stab_section->data;
+        stab_str = (char *) s->stabstr_section->data;
+    }
+
+    func_name[0] = '\0';
+    func_addr = 0;
+    incl_index = 0;
+    last_func_name[0] = '\0';
+    last_pc = (addr_t)-1;
+    last_line_num = 1;
+
+    if (!stab_sym)
+        goto no_stabs;
+
+    stab_sym_end = (Stab_Sym*)((char*)stab_sym + stab_len);
+    for (sym = stab_sym + 1; sym < stab_sym_end; ++sym) {
+        switch(sym->n_type) {
+            /* function start or end */
+        case N_FUN:
+            if (sym->n_strx == 0) {
+                /* we test if between last line and end of function */
+                pc = sym->n_value + func_addr;
+                if (wanted_pc >= last_pc && wanted_pc < pc)
+                    goto found;
+                func_name[0] = '\0';
+                func_addr = 0;
+            } else {
+                str = stab_str + sym->n_strx;
+                p = strchr(str, ':');
+                if (!p) {
+                    pstrcpy(func_name, sizeof(func_name), str);
+                } else {
+                    len = p - str;
+                    if (len > sizeof(func_name) - 1)
+                        len = sizeof(func_name) - 1;
+                    memcpy(func_name, str, len);
+                    func_name[len] = '\0';
+                }
+                func_addr = sym->n_value;
+            }
+            break;
+            /* line number info */
+        case N_SLINE:
+            pc = sym->n_value + func_addr;
+            if (wanted_pc >= last_pc && wanted_pc < pc)
+                goto found;
+            last_pc = pc;
+            last_line_num = sym->n_desc;
+            /* XXX: slow! */
+            strcpy(last_func_name, func_name);
+            break;
+            /* include files */
+        case N_BINCL:
+            str = stab_str + sym->n_strx;
+        add_incl:
+            if (incl_index < INCLUDE_STACK_SIZE) {
+                incl_files[incl_index++] = str;
+            }
+            break;
+        case N_EINCL:
+            if (incl_index > 1)
+                incl_index--;
+            break;
+        case N_SO:
+            if (sym->n_strx == 0) {
+                incl_index = 0; /* end of translation unit */
+            } else {
+                str = stab_str + sym->n_strx;
+                /* do not add path */
+                len = strlen(str);
+                if (len > 0 && str[len - 1] != '/')
+                    goto add_incl;
+            }
+            break;
+        }
+    }
+
+no_stabs:
+    /* second pass: we try symtab symbols (no line number info) */
+    incl_index = 0;
+    if (s->symtab)
+    {
+        ElfW(Sym) *sym, *sym_end;
+        int type;
+
+        sym_end = (ElfW(Sym) *)(s->symtab->data + s->symtab->data_offset);
+        for(sym = (ElfW(Sym) *)s->symtab->data + 1;
+            sym < sym_end;
+            sym++) {
+            type = ELFW(ST_TYPE)(sym->st_info);
+            if (type == STT_FUNC || type == STT_GNU_IFUNC) {
+                if (wanted_pc >= sym->st_value &&
+                    wanted_pc < sym->st_value + sym->st_size) {
+                    pstrcpy(last_func_name, sizeof(last_func_name),
+                            (char *) s->symtab->link->data + sym->st_name);
+                    func_addr = sym->st_value;
+                    goto found;
+                }
+            }
+        }
+    }
+    /* did not find any info: */
+	sprintf(tmp_buf, " %p ???\n", (void*)wanted_pc);
+	trace(msg);	trace(tmp_buf);
+    return 0;
+ found:
+    i = incl_index;
+    if (i > 0) {
+		sprintf(tmp_buf, ":%d: ", last_line_num);
+		trace(incl_files[--i]);	trace(tmp_buf);
+	}
+	sprintf(tmp_buf, " %p", (void*)wanted_pc);
+	trace(msg);	trace(tmp_buf);
+    if (last_func_name[0] != '\0') {
+		trace(" ");	trace(last_func_name); trace("()");
+	}
+    if (--i >= 0) {
+        trace(" (included from ");
+        for (;;) {
+            trace(incl_files[i]);
+            if (--i < 0)
+                break;
+            trace(", ");
+        }
+        trace(")");
+    }
+    trace("\n");
+    return func_addr;
+}
+
+void tcc_debug_rt_error(TCCState *s, void *rt_main, int max_level, void* uc, void (*trace)(const char* msg)) {
     addr_t pc;
     int i;
     for( i=0; i<max_level; ++i ) {
         if (rt_get_caller_pc(&pc, (ucontext_t*)uc, i) < 0)
             break;
-        pc = rt_printline(pc, i ? "by" : "at");
+        pc = rt_trace(s, pc, i ? "by" : "at", trace);
         if (pc == (addr_t)rt_main && pc)
             break;
     }
-	symtab_section = old_symtab_section;
-	stab_section = old_stab_section;
-	stabstr_section = old_stabstr_section;
 }
