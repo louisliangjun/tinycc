@@ -20,8 +20,9 @@
 
 #include "tcc.h"
 
-static int _open_wrap(const char* filename, int flag) { return open(filename, flag); }
-TCCHook __tcc_hook = { _open_wrap, close, lseek, read };
+static int _open_wrap(const char *filename, int flag) { return open(filename, flag); }
+static int _read_wrap(int fd, void *buf, unsigned int len) { return read(fd, buf, len); }
+TCCHook __tcc_hook = { _open_wrap, close, lseek, _read_wrap };
 void tcc_setup_hook(const TCCHook *hook) { __tcc_hook = *hook; }
 
 /********************************************************/

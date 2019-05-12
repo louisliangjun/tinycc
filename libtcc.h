@@ -14,10 +14,10 @@ struct TCCState;
 typedef struct TCCState TCCState;
 
 typedef struct TCCHook {
-    int  (*open)(const char* filename, int flag);
-    void (*close)(int fd);
+    int  (*open)(const char *filename, int flag);
+    int  (*close)(int fd);
     long (*lseek)(int fd, long offset, int origin);
-	int  (*read)(int fd, void *buf, unsigned int len);
+    int  (*read)(int fd, void *buf, unsigned int len);
 } TCCHook;
 
 LIBTCCAPI void tcc_setup_hook(const TCCHook *hook);
