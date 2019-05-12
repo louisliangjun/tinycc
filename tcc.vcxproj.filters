@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="tcc.c" />
+    <ClCompile Include="tccrun.c" />
+    <ClCompile Include="tcctools.c" />
+    <ClCompile Include="x86_64-gen.c" />
+    <ClCompile Include="x86_64-link.c" />
+    <ClCompile Include="arm64-gen.c" />
+    <ClCompile Include="arm64-link.c" />
+    <ClCompile Include="arm-asm.c" />
+    <ClCompile Include="arm-gen.c" />
+    <ClCompile Include="arm-link.c" />
+    <ClCompile Include="c67-gen.c" />
+    <ClCompile Include="c67-link.c" />
+    <ClCompile Include="conftest.c" />
+    <ClCompile Include="i386-asm.c" />
+    <ClCompile Include="i386-gen.c" />
+    <ClCompile Include="i386-link.c" />
+    <ClCompile Include="il-gen.c" />
+    <ClCompile Include="libtcc.c" />
+    <ClCompile Include="tccasm.c" />
+    <ClCompile Include="tcccoff.c" />
+    <ClCompile Include="tccelf.c" />
+    <ClCompile Include="tccgen.c" />
+    <ClCompile Include="tccpe.c" />
+    <ClCompile Include="tccpp.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="libtcc.h" />
+    <ClInclude Include="stab.h" />
+    <ClInclude Include="tcc.h" />
+    <ClInclude Include="config.h" />
+    <ClInclude Include="coff.h" />
+    <ClInclude Include="elf.h" />
+    <ClInclude Include="i386-asm.h" />
+    <ClInclude Include="i386-tok.h" />
+    <ClInclude Include="il-opcodes.h" />
+    <ClInclude Include="tcclib.h" />
+    <ClInclude Include="tcctok.h" />
+    <ClInclude Include="x86_64-asm.h" />
+  </ItemGroup>
+</Project>

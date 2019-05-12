@@ -97,6 +97,8 @@ ST_FUNC void tccelf_stab_new(TCCState *s)
     stab_section->link = stabstr_section;
     /* put first entry */
     put_stabs("", 0, 0, 0, 0);
+	s->stab_section = stab_section;
+	s->stabstr_section = stabstr_section;
 }
 
 static void free_section(Section *s)

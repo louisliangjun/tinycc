@@ -838,3 +838,21 @@ ST_FUNC void *dlsym(void *handle, const char *symbol)
 #endif /* CONFIG_TCC_STATIC */
 #endif /* TCC_IS_NATIVE */
 /* ------------------------------------------------------------- */
+
+void tcc_debug_rt_error(TCCState *s, void *rt_main, int max_level, void* uc) {
+	Section *old_symtab_section = symtab_section;
+	Section *old_stab_section = stab_section;
+	Section *old_stabstr_section = stabstr_section;
+    addr_t pc;
+    int i;
+    for( i=0; i<max_level; ++i ) {
+        if (rt_get_caller_pc(&pc, (ucontext_t*)uc, i) < 0)
+            break;
+        pc = rt_printline(pc, i ? "by" : "at");
+        if (pc == (addr_t)rt_main && pc)
+            break;
+    }
+	symtab_section = old_symtab_section;
+	stab_section = old_stab_section;
+	stabstr_section = old_stabstr_section;
+}

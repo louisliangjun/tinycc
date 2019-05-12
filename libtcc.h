@@ -22,6 +22,8 @@ typedef struct TCCHook {
 
 LIBTCCAPI void tcc_setup_hook(const TCCHook *hook);
 
+LIBTCCAPI void tcc_debug_rt_error(TCCState *s, void *rt_main, int max_level, void* uc);
+
 /* create a new TCC compilation context */
 LIBTCCAPI TCCState *tcc_new(void);
 
