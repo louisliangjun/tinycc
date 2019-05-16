@@ -867,6 +867,8 @@ static addr_t rt_trace(TCCState *s, addr_t wanted_pc, const char *msg, void (*tr
     if (!stab_sym)
         goto no_stabs;
 
+	unsigned int wanted_pc_uint =  (unsigned int)wanted_pc;
+
     stab_sym_end = (Stab_Sym*)((char*)stab_sym + stab_len);
     for (sym = stab_sym + 1; sym < stab_sym_end; ++sym) {
         switch(sym->n_type) {
@@ -875,7 +877,7 @@ static addr_t rt_trace(TCCState *s, addr_t wanted_pc, const char *msg, void (*tr
             if (sym->n_strx == 0) {
                 /* we test if between last line and end of function */
                 pc = sym->n_value + func_addr;
-                if (wanted_pc >= last_pc && wanted_pc < pc)
+                if (wanted_pc_uint >= last_pc && wanted_pc_uint < pc)
                     goto found;
                 func_name[0] = '\0';
                 func_addr = 0;
@@ -897,7 +899,7 @@ static addr_t rt_trace(TCCState *s, addr_t wanted_pc, const char *msg, void (*tr
             /* line number info */
         case N_SLINE:
             pc = sym->n_value + func_addr;
-            if (wanted_pc >= last_pc && wanted_pc < pc)
+            if (wanted_pc_uint >= last_pc && wanted_pc_uint < pc)
                 goto found;
             last_pc = pc;
             last_line_num = sym->n_desc;
