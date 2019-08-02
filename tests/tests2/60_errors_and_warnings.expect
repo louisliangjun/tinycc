@@ -73,7 +73,7 @@
 60_errors_and_warnings.c:153: error: ',' expected (got "a")
 
 [test_conflicting_types]
-60_errors_and_warnings.c:159: error: conflicting types for 'i'
+60_errors_and_warnings.c:159: error: incompatible types for redefinition of 'i'
 
 [test_nested_types]
 60_errors_and_warnings.c:166: error: struct/union/enum already defined
@@ -86,3 +86,49 @@
 
 [test_static_assert]
 60_errors_and_warnings.c:183: error: "ONE is not 1"
+
+[test_void_array]
+60_errors_and_warnings.c:186: error: declaration of an array of incomplete type elements
+
+[test_incomplete_enum_array]
+60_errors_and_warnings.c:189: error: declaration of an array of incomplete type elements
+
+[test_incomplete_struct_array]
+60_errors_and_warnings.c:192: error: declaration of an array of incomplete type elements
+
+[test_const_fun_array]
+60_errors_and_warnings.c:196: error: declaration of an array of functions
+
+[test_incomplete_array_array]
+
+[test_extern_array]
+60_errors_and_warnings.c:212: error: incompatible types for redefinition of 'x'
+
+[test_func_1]
+hello: a = 123
+
+[test_func_2]
+hello: a = 123
+
+[test_func_3]
+60_errors_and_warnings.c:241: warning: static storage ignored for redefinition of 'hello'
+hello: a = 123
+
+[test_func_4]
+hello: a = 123
+
+[test_func_5]
+60_errors_and_warnings.c:241: error: incompatible types for redefinition of 'hello'
+
+[test_var_1]
+main : 1 ; 1
+main : 2 ; 2
+bar  : 3 ; 3
+
+[test_var_2]
+main : 1 ; 1
+main : 2 ; 2
+bar  : 3 ; 3
+
+[test_var_3]
+60_errors_and_warnings.c:273: error: incompatible types for redefinition of 'xxx'

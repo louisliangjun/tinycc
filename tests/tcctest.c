@@ -179,7 +179,7 @@ static int onetwothree = 123;
 
 #ifdef __TINYC__
 /* We try to handle this syntax.  Make at least sure it doesn't segfault.  */
-char invalid_function_def()[] {}
+char invalid_function_def()[] {return 0;}
 #endif
 
 #define __INT64_C(c)	c ## LL
@@ -572,6 +572,7 @@ void goto_test()
     printf("goto:\n");
     i = 0;
     /* This needs to parse as label, not as start of decl.  */
+ typedef_and_label x;
  typedef_and_label:
  s_loop:
     if (i >= 10) 
@@ -815,6 +816,16 @@ void scope_test2()
     }
     printf("exloc: %d\n", *st2_p);
 }
+
+/* C has tentative definition, and they may be repeated.  */
+extern int st_global1;
+int st_global1=42;
+extern int st_global1;
+int st_global1;
+extern int st_global2;
+int st_global2;
+extern int st_global2;
+int st_global2;
 
 void array_test()
 {
@@ -1454,6 +1465,9 @@ int defined_function(void)
 /* GCC accepts that */
 static int tab_reinit[];
 static int tab_reinit[10];
+
+static int tentative_ar[];
+static int tentative_ar[] = {1,2,3};
 
 //int cinit1; /* a global variable can be defined several times without error ! */
 int cinit1; 
@@ -2452,6 +2466,11 @@ long long llfunc2(long long x, long long y, int z)
     return x * y * z;
 }
 
+void check_opl_save_regs(char *a, long long b, int c)
+{
+    *a = b < 0 && !c;
+}
+
 void longlong_test(void)
 {
     long long a, b, c;
@@ -2524,6 +2543,11 @@ void longlong_test(void)
     unsigned long long u = 0x8000000000000001ULL;
     u = (unsigned)(u + 1);
     printf("long long u=" ULONG_LONG_FORMAT "\n", u);
+
+    /* was a problem with missing save_regs in gen_opl on 32-bit platforms */
+    char cc = 78;
+    check_opl_save_regs(&cc, -1, 0);
+    printf("check_opl_save_regs: %d\n", cc);
 }
 
 void manyarg_test(void)
@@ -3438,10 +3462,18 @@ void asm_dot_test(void)
         case 2:
             asm(".text; jmp .+6; .int 123; mov .-4"RX",%eax; jmp p0");
 	case 3:
+#ifndef _WIN32
             asm(".pushsection \".data\"; Y=.; .int 999; X=Y; .int 456; X=.-4; .popsection");
+#else
+            asm(".data; Y=.; .int 999; X=Y; .int 456; X=.-4; .text");
+#endif
             asm(".text; mov X"RX",%eax; jmp p0");
         case 4:
+#ifndef _WIN32
             asm(".data; X=.; .int 789; Y=.; .int 999; .previous");
+#else
+            asm(".data; X=.; .int 789; Y=.; .int 999; .text");
+#endif
             asm(".text; mov X"RX",%eax; X=Y; jmp p0");
         case 0:
 	    asm(".text; p0=.; mov %%eax,%0;" : "=m"(r)); break;
@@ -3746,6 +3778,7 @@ int fcompare (double a, double b, int code)
     case 4: return a > b;
     case 5: return a <= b;
   }
+  return 0;
 }
 
 void math_cmp_test(void)
@@ -3754,6 +3787,7 @@ void math_cmp_test(void)
   double one = 1.0;
   double two = 2.0;
   int comp = 0;
+  int v;
 #define bug(a,b,op,iop,part) printf("Test broken: %s %s %s %s %d\n", #a, #b, #op, #iop, part)
 
   /* This asserts that "a op b" is _not_ true, but "a iop b" is true.
@@ -3775,7 +3809,8 @@ void math_cmp_test(void)
   if ((a iop b) || comp) \
     ; \
   else \
-    bug (a,b,op,iop,5);
+    bug (a,b,op,iop,5); \
+  if (v = !(a op b), !v) bug(a,b,op,iop,7);
 
   /* Equality tests.  */
   FCMP(nan, nan, ==, !=, 0);

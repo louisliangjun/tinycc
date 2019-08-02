@@ -236,12 +236,6 @@ ST_FUNC void gsym_addr(int t_, int a_)
     }
 }
 
-// Patch all branches in list pointed to by t to branch to current location:
-ST_FUNC void gsym(int t)
-{
-    gsym_addr(t, ind);
-}
-
 static int arm64_type_size(int t)
 {
     switch (t & VT_BTYPE) {
@@ -446,6 +440,8 @@ static void arm64_sym(int r, Sym *sym, unsigned long addend)
     }
 }
 
+static void arm64_load_cmp(int r, SValue *sv);
+
 ST_FUNC void load(int r, SValue *sv)
 {
     int svtt = sv->type.t;
@@ -534,6 +530,11 @@ ST_FUNC void load(int r, SValue *sv)
         else
             arm64_ldrx(!(svtt & VT_UNSIGNED), arm64_type_size(svtt),
                        intr(r), 30, 0);
+        return;
+    }
+
+    if (svr == VT_CMP) {
+        arm64_load_cmp(r, sv);
         return;
     }
 
@@ -1303,9 +1304,50 @@ ST_FUNC void gjmp_addr(int a)
     o(0x14000000 | ((a - ind) >> 2 & 0x3ffffff));
 }
 
-ST_FUNC int gtst(int inv, int t)
+ST_FUNC int gjmp_append(int n, int t)
+{
+    void *p;
+    /* insert vtop->c jump list in t */
+    if (n) {
+        uint32_t n1 = n, n2;
+        while ((n2 = read32le(p = cur_text_section->data + n1)))
+            n1 = n2;
+        write32le(p, t);
+        t = n;
+    }
+    return t;
+}
+
+void arm64_vset_VT_CMP(int op)
+{
+    if (op >= TOK_ULT && op <= TOK_GT) {
+        vtop->cmp_r = vtop->r;
+        vset_VT_CMP(0x80);
+    }
+}
+
+static void arm64_gen_opil(int op, uint32_t l);
+
+static void arm64_load_cmp(int r, SValue *sv)
+{
+    sv->r = sv->cmp_r;
+    if (sv->c.i & 1) {
+        vpushi(1);
+        arm64_gen_opil('^', 0);
+    }
+    if (r != sv->r) {
+        load(r, sv);
+        sv->r = r;
+    }
+}
+
+ST_FUNC int gjmp_cond(int op, int t)
 {
     int bt = vtop->type.t & VT_BTYPE;
+
+    int inv = op & 1;
+    vtop->r = vtop->cmp_r;
+
     if (bt == VT_LDOUBLE) {
         uint32_t a, b, f = fltr(gv(RC_FLOAT));
         a = get_reg(RC_INT);
@@ -1330,7 +1372,6 @@ ST_FUNC int gtst(int inv, int t)
         uint32_t a = intr(gv(RC_INT));
         o(0x34000040 | a | !!inv << 24 | ll << 31); // cbz/cbnz wA,.+8
     }
-    --vtop;
     return gjmp(t);
 }
 
@@ -1559,11 +1600,13 @@ static void arm64_gen_opil(int op, uint32_t l)
 ST_FUNC void gen_opi(int op)
 {
     arm64_gen_opil(op, 0);
+    arm64_vset_VT_CMP(op);
 }
 
 ST_FUNC void gen_opl(int op)
 {
     arm64_gen_opil(op, 1);
+    arm64_vset_VT_CMP(op);
 }
 
 ST_FUNC void gen_opf(int op)
@@ -1663,6 +1706,7 @@ ST_FUNC void gen_opf(int op)
     default:
         assert(0);
     }
+    arm64_vset_VT_CMP(op);
 }
 
 // Generate sign extension from 32 to 64 bits:

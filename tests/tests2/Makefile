@@ -56,6 +56,10 @@ GEN-ALWAYS =
 # using the ms compiler for the really ms-compatible bitfields
 95_bitfields_ms.test : GEN = $(GEN-MSC)
 
+# this test compiles/links two files:
+104_inline.test : FLAGS += $(SRC)/104+_inline.c
+104_inline.test : GEN = $(GEN-TCC)
+
 # Filter source directory in warnings/errors (out-of-tree builds)
 FILTER = 2>&1 | sed 's,$(SRC)/,,g'
 # Filter some always-warning

@@ -38,7 +38,7 @@ static Sym* asm_new_label1(TCCState *s1, int label, int is_local, int sh_num, in
 static Sym *asm_label_find(int v)
 {
     Sym *sym = sym_find(v);
-    while (sym && sym->sym_scope)
+    while (sym && sym->sym_scope && !(sym->type.t & VT_STATIC))
         sym = sym->prev_tok;
     return sym;
 }
@@ -912,9 +912,6 @@ static int tcc_assemble_internal(TCCState *s1, int do_preprocess, int global)
         next();
         if (tok == TOK_EOF)
             break;
-        /* generate line number info */
-        if (global && s1->do_debug)
-            tcc_debug_line(s1);
         parse_flags |= PARSE_FLAG_LINEFEED; /* XXX: suppress that hack */
     redo:
         if (tok == '#') {
@@ -1148,7 +1145,6 @@ ST_FUNC void asm_instr(void)
     uint8_t clobber_regs[NB_ASM_REGS];
     Section *sec;
 
-    next();
     /* since we always generate the asm() instruction, we can ignore
        volatile */
     if (tok == TOK_VOLATILE1 || tok == TOK_VOLATILE2 || tok == TOK_VOLATILE3) {

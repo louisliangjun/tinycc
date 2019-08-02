@@ -382,11 +382,6 @@ void gsym_addr(int t, int a)
   }
 }
 
-void gsym(int t)
-{
-  gsym_addr(t, ind);
-}
-
 #ifdef TCC_ARM_VFP
 static uint32_t vfpr(int r)
 {
@@ -409,9 +404,9 @@ static uint32_t intr(int r)
     return 12;
   if(r >= TREG_R0 && r <= TREG_R3)
     return r - TREG_R0;
-  if (r >= TREG_SP && r <= TREG_LR)
-    return r + (13 - TREG_SP);
-  tcc_error("compiler error! register %i is no int register",r);
+  if (!(r >= TREG_SP && r <= TREG_LR))
+    tcc_error("compiler error! register %i is no int register",r);
+  return r + (13 - TREG_SP);
 }
 
 static void calcaddr(uint32_t *base, int *off, int *sgn, int maxoff, unsigned shift)
@@ -1424,7 +1419,7 @@ ST_FUNC void gen_fill_nops(int bytes)
 }
 
 /* generate a jump to a label */
-int gjmp(int t)
+ST_FUNC int gjmp(int t)
 {
   int r;
   if (nocode_wanted)
@@ -1435,51 +1430,37 @@ int gjmp(int t)
 }
 
 /* generate a jump to a fixed address */
-void gjmp_addr(int a)
+ST_FUNC void gjmp_addr(int a)
 {
   gjmp(a);
 }
 
-/* generate a test. set 'inv' to invert test. Stack entry is popped */
-int gtst(int inv, int t)
+ST_FUNC int gjmp_cond(int op, int t)
 {
-  int v, r;
-  uint32_t op;
-
-  v = vtop->r & VT_VALMASK;
+  int r;
+  if (nocode_wanted)
+    return t;
   r=ind;
+  op=mapcc(op);
+  op|=encbranch(r,t,1);
+  o(op);
+  return r;
+}
 
-  if (nocode_wanted) {
-    ;
-  } else if (v == VT_CMP) {
-    op=mapcc(inv?negcc(vtop->c.i):vtop->c.i);
-    op|=encbranch(r,t,1);
-    o(op);
-    t=r;
-  } else if (v == VT_JMP || v == VT_JMPI) {
-    if ((v & 1) == inv) {
-      if(!vtop->c.i)
-	vtop->c.i=t;
-      else {
-	uint32_t *x;
-	int p,lp;
-	if(t) {
-          p = vtop->c.i;
-          do {
-	    p = decbranch(lp=p);
-          } while(p);
-	  x = (uint32_t *)(cur_text_section->data + lp);
-	  *x &= 0xff000000;
-	  *x |= encbranch(lp,t,1);
-	}
-	t = vtop->c.i;
-      }
-    } else {
-      t = gjmp(t);
-      gsym(vtop->c.i);
-    }
+ST_FUNC int gjmp_append(int n, int t)
+{
+  uint32_t *x;
+  int p,lp;
+  if(n) {
+    p = n;
+    do {
+      p = decbranch(lp=p);
+    } while(p);
+    x = (uint32_t *)(cur_text_section->data + lp);
+    *x &= 0xff000000;
+    *x |= encbranch(lp,t,1);
+    t = n;
   }
-  vtop--;
   return t;
 }
 
@@ -1616,10 +1597,8 @@ void gen_opi(int op)
       o(opc|(r<<12)|fr);
 done:
       vtop--;
-      if (op >= TOK_ULT && op <= TOK_GT) {
-        vtop->r = VT_CMP;
-        vtop->c.i = op;
-      }
+      if (op >= TOK_ULT && op <= TOK_GT)
+        vset_VT_CMP(op);
       break;
     case 2:
       opc=0xE1A00000|(opc<<5);
@@ -1735,9 +1714,7 @@ void gen_opf(int op)
         case TOK_UGE: op=TOK_GE; break;
         case TOK_UGT: op=TOK_GT; break;
       }
-
-      vtop->r = VT_CMP;
-      vtop->c.i = op;
+      vset_VT_CMP(op);
       return;
   }
   r=gv(RC_FLOAT);
@@ -1939,8 +1916,9 @@ void gen_opf(int op)
 	} else {
 	  r2=fpr(gv(RC_FLOAT));
 	}
-	vtop[-1].r = VT_CMP;
-	vtop[-1].c.i = op;
+        --vtop;
+        vset_VT_CMP(op);
+        ++vtop;
       } else {
         tcc_error("unknown fp op %x!",op);
 	return;
