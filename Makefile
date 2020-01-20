@@ -30,7 +30,7 @@ ifdef CONFIG_WIN32
  CFGWIN = -win
  NATIVE_TARGET = $(ARCH)-win$(if $(findstring arm,$(ARCH)),ce,32)
 else
- LIBS=-lm
+ LIBS=-lm -lpthread
  ifneq ($(CONFIG_ldl),no)
   LIBS+=-ldl
  endif
@@ -78,6 +78,7 @@ NATIVE_DEFINES_$(CONFIG_arm_eabihf) += -DTCC_ARM_EABI -DTCC_ARM_HARDFLOAT
 NATIVE_DEFINES_$(CONFIG_arm_eabi) += -DTCC_ARM_EABI
 NATIVE_DEFINES_$(CONFIG_arm_vfp) += -DTCC_ARM_VFP
 NATIVE_DEFINES_$(CONFIG_arm64) += -DTCC_TARGET_ARM64
+NATIVE_DEFINES_$(CONFIG_riscv64) += -DTCC_TARGET_RISCV64
 NATIVE_DEFINES += $(NATIVE_DEFINES_yes)
 
 ifeq ($(INCLUDED),no)
@@ -92,10 +93,12 @@ all: $(PROGS) $(TCCLIBS) $(TCCDOCS)
 
 # cross compiler targets to build
 TCC_X = i386 x86_64 i386-win32 x86_64-win32 x86_64-osx arm arm64 arm-wince c67
+TCC_X += riscv64
 # TCC_X += arm-fpa arm-fpa-ld arm-vfp arm-eabi
 
 # cross libtcc1.a targets to build
 LIBTCC1_X = i386 x86_64 i386-win32 x86_64-win32 x86_64-osx arm arm64 arm-wince
+LIBTCC1_X += riscv64
 
 PROGS_CROSS = $(foreach X,$(TCC_X),$X-tcc$(EXESUF))
 LIBTCC1_CROSS = $(foreach X,$(LIBTCC1_X),$X-libtcc1.a)
@@ -133,6 +136,7 @@ DEF-arm-vfp     = -DTCC_TARGET_ARM -DTCC_ARM_VFP
 DEF-arm-eabi    = -DTCC_TARGET_ARM -DTCC_ARM_VFP -DTCC_ARM_EABI
 DEF-arm-eabihf  = -DTCC_TARGET_ARM -DTCC_ARM_VFP -DTCC_ARM_EABI -DTCC_ARM_HARDFLOAT
 DEF-arm         = $(DEF-arm-eabihf)
+DEF-riscv64     = -DTCC_TARGET_RISCV64
 DEF-$(NATIVE_TARGET) = $(NATIVE_DEFINES)
 
 DEFINES += $(DEF-$T) $(DEF-all)
@@ -172,6 +176,7 @@ arm-eabi_FILES    = $(arm_FILES)
 arm-eabihf_FILES  = $(arm_FILES)
 arm64_FILES = $(CORE_FILES) arm64-gen.c arm64-link.c
 c67_FILES = $(CORE_FILES) c67-gen.c c67-link.c tcccoff.c
+riscv64_FILES = $(CORE_FILES) riscv64-gen.c riscv64-link.c
 
 # libtcc sources
 LIBTCC_SRC = $(filter-out tcc.c tcctools.c,$(filter %.c,$($T_FILES)))
@@ -239,7 +244,14 @@ libtcc1.a : tcc$(EXESUF) FORCE
 %-libtcc1.a : %-tcc$(EXESUF) FORCE
 	@$(MAKE) -C lib DEFINES='$(DEF-$*)' CROSS_TARGET=$*
 
-.PRECIOUS: %-libtcc1.a
+# TinyCC runtime libraries
+libtccb1.a : libtcc1.a
+
+# Cross libtcc1.a
+%-libtccb1.a : %-tcc$(EXESUF) FORCE
+	@$(MAKE) -C lib DEFINES='$(DEF-$*)' CROSS_TARGET=$*
+
+.PRECIOUS: %-libtcc1.a %-libtccb1.a
 FORCE:
 
 # --------------------------------------------------------------------------
@@ -269,11 +281,12 @@ IBw = $(call IB,$(wildcard $1),$2)
 IF = $(if $1,mkdir -p $2 && $(INSTALL) $1 $2)
 IFw = $(call IF,$(wildcard $1),$2)
 IR = mkdir -p $2 && cp -r $1/. $2
+B_O = bcheck.o bt-exe.o bt-log.o bt-dll.o
 
 # install progs & libs
 install-unx:
 	$(call IBw,$(PROGS) $(PROGS_CROSS),"$(bindir)")
-	$(call IFw,$(LIBTCC1) $(LIBTCC1_U),"$(tccdir)")
+	$(call IFw,$(LIBTCC1) $(B_O) $(LIBTCC1_U),"$(tccdir)")
 	$(call IF,$(TOPSRC)/include/*.h $(TOPSRC)/tcclib.h,"$(tccdir)/include")
 	$(call $(if $(findstring .so,$(LIBTCC)),IBw,IFw),$(LIBTCC),"$(libdir)")
 	$(call IF,$(TOPSRC)/libtcc.h,"$(includedir)")
@@ -298,7 +311,7 @@ uninstall-unx:
 install-win:
 	$(call IBw,$(PROGS) $(PROGS_CROSS) $(subst libtcc.a,,$(LIBTCC)),"$(bindir)")
 	$(call IF,$(TOPSRC)/win32/lib/*.def,"$(tccdir)/lib")
-	$(call IFw,libtcc1.a $(LIBTCC1_W),"$(tccdir)/lib")
+	$(call IFw,libtcc1.a $(B_O) $(LIBTCC1_W),"$(tccdir)/lib")
 	$(call IF,$(TOPSRC)/include/*.h $(TOPSRC)/tcclib.h,"$(tccdir)/include")
 	$(call IR,$(TOPSRC)/win32/include,"$(tccdir)/include")
 	$(call IR,$(TOPSRC)/win32/examples,"$(tccdir)/examples")
