@@ -41,6 +41,8 @@ win32/include/stddef.h
 win32/include/varargs.h
 win32/include/tcclib.h
 
+x64/
+
 tests/tcctest[1234]
 tests/tcctest.gcc
 tests/*.out*

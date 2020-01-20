@@ -850,8 +850,6 @@ struct TCCState {
     Section *dynsym;
     /* copy of the global symtab_section variable */
     Section *symtab;
-	Section *stab_section;
-	Section *stabstr_section;
     /* extra attributes (eg. GOT/PLT value) for symtab symbols */
     struct sym_attr *sym_attrs;
     int nb_sym_attrs;

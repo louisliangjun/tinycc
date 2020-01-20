@@ -1536,6 +1536,8 @@ static int add_dllref(TCCState *s1, const char *dllname)
 
 /* ------------------------------------------------------------- */
 
+#define open	__tcc_hook.open
+#define close	__tcc_hook.close
 #define read	__tcc_hook.read
 #define lseek	__tcc_hook.lseek
 
@@ -1544,9 +1546,6 @@ static int read_mem(int fd, unsigned offset, void *buffer, unsigned len)
     lseek(fd, offset, SEEK_SET);
     return len == read(fd, buffer, len);
 }
-
-#undef read
-#undef lseek
 
 /* ------------------------------------------------------------- */
 
@@ -1642,6 +1641,11 @@ the_end_1:
     *pp = p;
     return ret;
 }
+
+#undef read
+#undef lseek
+#undef close
+#undef open
 
 /* -------------------------------------------------------------
  *  This is for compiled windows resources in 'coff' format
